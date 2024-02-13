@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using Bogus;
 using Bogus.DataSets;
@@ -7,10 +9,11 @@ using Dapper;
 using Npgsql;
 using NpgsqlTypes;
 using SRVpart.FakeDataGen;
+using SRVpart.Interfaces;
 
 namespace SRVpart.Data
 {
-    internal class PostgresDB : IDisposable
+    internal class PostgresDB : IDisposable, IFilldtaBase
     {
         #region FIELDS
         
@@ -88,99 +91,11 @@ namespace SRVpart.Data
         }
 
         /// <summary>
-        /// Получаем последний свободный номер карты.
+        /// Заполнение таблицы сотрудников.
         /// </summary>
-        /// <param name="lastFreeVol">
-        /// Последний номер карты.
+        /// <param name="gender">
+        /// Пол.
         /// </param>
-        public void GetLastFreeValue(out int lastFreeVol)
-        {
-            lastFreeVol = 0;
-            NpgsqlCommand npgsqlCommand = _connection.CreateCommand();
-
-            npgsqlCommand.CommandText = $"SELECT cardnumber FROM CARDS";
-
-            NpgsqlDataReader data;
-            data = npgsqlCommand.ExecuteReader();
-
-            DataTable dataTable = new DataTable();
-            dataTable.Load(data);
-
-            if (dataTable.Rows.Count != 0)
-            {
-                data.Close();
-                npgsqlCommand.CommandText = "Select max(cardnumber) as cardnumber from cards";
-                data = npgsqlCommand.ExecuteReader();
-
-                while (data.Read())
-                {
-                    lastFreeVol = (int)data["cardnumber"];
-                }
-            }
-
-            data.Close();
-        }
-
-        /// <summary>
-        /// Проверяем естьли карты с таким номером.
-        /// </summary>
-        /// <param name="cardNumber">
-        /// Номер карты.
-        /// </param>
-        /// <returns>
-        /// bool.
-        /// </returns>
-        public bool CheckIfCardExist(int cardNumber)
-        {
-            bool isExist = false;
-
-            var queryArguments = new
-            {
-                card = cardNumber,
-            };
-
-            string sqlCommand = "SELECT COUNT(*) FROM cards WHERE cardnumber = @card";
-
-            int count = _connection.QueryFirstOrDefault<int>(sqlCommand, queryArguments);
-
-            if (count >= 1)
-            {
-                isExist = true;
-            }
-
-            return isExist;
-        }
-
-        /// <summary>
-        /// Проверяем естьли карты с таким номером.
-        /// </summary>
-        /// <param name="phoneNumber">
-        /// Номер карты.
-        /// </param>
-        /// <returns>
-        /// bool.
-        /// </returns>
-        public bool CheckIfPhone(string phoneNumber)
-        {
-            bool isExist = false;
-
-            var queryArguments = new
-            {
-                phone = phoneNumber,
-            };
-
-            string sqlCommand = "SELECT COUNT(*) FROM cards WHERE \"phoneNumber\" = @phone";
-
-            int count = _connection.QueryFirstOrDefault<int>(sqlCommand, queryArguments);
-
-            if (count >= 1)
-            {
-                isExist = true;
-            }
-
-            return isExist;
-        }
-
         public void FillEmployeesTable(Name.Gender gender)
         {
             Faker faker = new Faker("ru");
@@ -260,9 +175,12 @@ namespace SRVpart.Data
 
         }
 
+        /// <summary>
+        /// Заполнение табоицы с бизнес-телефонами.
+        /// </summary>
         public void FillBuisnessPhones()
         {
-           
+            const int VarcharLenth = 15;
             string query = "select \"PersonnelNumber\" from \"Employees\";";
             NpgsqlCommand command = new NpgsqlCommand(query, _connection);
 
@@ -292,16 +210,24 @@ namespace SRVpart.Data
 
                 command.Parameters.Add(
                     "@Phone",
-                    NpgsqlDbType.Varchar, 15).Value = phoneNumerGenerator.GetNumber();
+                    NpgsqlDbType.Varchar,
+                    VarcharLenth).Value = phoneNumerGenerator.GetNumber();
 
                 try
                 {
                     command.ExecuteNonQuery();
                 }
-                finally { }
+                finally
+                {
+                }
+
+                command.Dispose();
             }
         }
 
+        /// <summary>
+        /// Заполнение таблицы с рабочими номерами.
+        /// </summary>
         public void FillWorkPhones()
         {
             string query = "select \"PersonnelNumber\" from \"Employees\";";
@@ -345,15 +271,152 @@ namespace SRVpart.Data
 
                     command.Parameters.Add(
                         "@Phone",
-                        NpgsqlDbType.Varchar, 15).Value = number;
+                        NpgsqlDbType.Varchar,
+                        15).Value = number;
 
                     try
                     {
                         command.ExecuteNonQuery();
                     }
-                    finally { }
+                    finally
+                    {
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// Заполнение таблицы истории сотрудника.
+        /// </summary>
+        public void FillHistory()
+        {
+            string query = "SELECT \"PersonnelNumber\", \"isWorked\" " +
+                " FROM \"Employees\";";
+
+            NpgsqlCommand command = new NpgsqlCommand(query, _connection)
+            {
+                CommandText = query,
+            };
+
+            NpgsqlDataReader dr = command.ExecuteReader();
+            Random random = new Random();
+
+            Hashtable table = new Hashtable();
+            while (dr.Read())
+            {
+                table.Add(dr.GetInt32(0), dr.GetBoolean(1));
+            }
+
+            dr.Close();
+
+            foreach (DictionaryEntry item in table)
+            {
+                string title = GetRandomTitle(random);
+
+                DateTime startDate;
+                DateTime endDate;
+                const int VarcharLenth = 15;
+
+                // true - если сотрудник работает
+                if ((bool)item.Value)
+                {
+                    startDate = DateTime.Today.AddMonths(-random.Next(1, 20));
+
+                    command = new NpgsqlCommand();
+                    command.Connection = _connection;
+                    command.CommandText =
+                        "INSERT INTO public.\"History\" " +
+                        "(\"PersonnelNumber\", \"Title\", \"StartDate\") " +
+                        " VALUES( @PersonnelNumber, @Title, @StartDate);";
+
+                    command.Parameters.Add(
+                        "@PersonnelNumber",
+                        NpgsqlDbType.Integer).Value = item.Key;
+
+                    command.Parameters.Add(
+                        "@Title",
+                        NpgsqlDbType.Varchar,
+                        VarcharLenth).Value = title;
+
+                    command.Parameters.Add(
+                        "@StartDate",
+                        NpgsqlDbType.Date).Value = startDate;
+
+                    int affectedRows = command.ExecuteNonQuery();
+
+                    if (affectedRows > 0)
+                    {
+                        Console.Write($"{item.Key}\t" +
+                            $"{title}\t" +
+                            $"{startDate}\t");
+
+                        UI.PrintColorfull("Еще работает\n");
+                    }
+
+                    command.Dispose();
+                }
+                else
+                {
+                    endDate = DateTime.Today.AddMonths(-random.Next(1, 20));
+                    startDate = endDate.AddMonths(-random.Next(1, 20));
+                    command = new NpgsqlCommand();
+                    command.Connection = _connection;
+                    command.CommandText =
+                        "INSERT INTO public.\"History\" " +
+                        "(\"PersonnelNumber\", \"Title\", \"StartDate\", \"EndDate\") " +
+                        "VALUES(@PersonnelNumber, @Title, @StartDate, @EndDate);";
+
+                    command.Parameters.Add(
+                        "@PersonnelNumber",
+                        NpgsqlDbType.Integer).Value = item.Key;
+
+                    command.Parameters.Add(
+                        "@Title",
+                        NpgsqlDbType.Varchar,
+                        VarcharLenth).Value = title;
+
+                    command.Parameters.Add(
+                        "@StartDate",
+                        NpgsqlDbType.Date).Value = startDate;
+
+                    command.Parameters.Add(
+                        "@EndDate",
+                        NpgsqlDbType.Date).Value = endDate;
+                    command.ExecuteNonQuery();
+                    command.Dispose();
+
+                    Console.Write($"{item.Key}" +
+                            $"\t{title}\t" +
+                            $"\t{startDate}\t" +
+                            $"\t{endDate}\t");
+
+                    UI.PrintColorfull("Уволен\n", ConsoleColor.Red);
+                }
+
+                command.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Получени ерандомной должности.
+        /// </summary>
+        /// <param name="random">
+        /// random.
+        /// </param>
+        /// <returns>Название должности.</returns>
+        private string GetRandomTitle(Random random)
+        {
+            System.Threading.Thread.Sleep(15);
+            Titles titleEnum = (Titles)Enum.ToObject(
+                      typeof(Titles),
+                      random.Next(1, 16));
+
+            var title = titleEnum.GetType().GetField(titleEnum.ToString());
+            var titleDescr =
+                (DescriptionAttribute)Attribute.GetCustomAttribute(
+                    title,
+                    typeof(DescriptionAttribute));
+            return titleDescr.Description;
         }
     }
 }

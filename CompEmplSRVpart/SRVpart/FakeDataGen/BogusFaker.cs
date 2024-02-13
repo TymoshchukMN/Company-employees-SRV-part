@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Data.SqlClient;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Bogus;
+﻿// Author: Tymoshchuk Maksym
+// Created On : 13/02/2024
+// Last Modified On :
+// Description: Заполнение новой базы фейковыми значениями
+// Project: SRVpart
+
+using System;
 using Bogus.DataSets;
-using Dapper;
-using Newtonsoft.Json;
-using Npgsql;
-using NpgsqlTypes;
 using SRVpart.Data;
 using SRVpart.JSON;
 
@@ -31,10 +23,11 @@ namespace SRVpart.FakeDataGen
                dBConfig.DBConfig.DBname,
                dBConfig.DBConfig.Port);
 
-            // pgDB.FillEmployeesTable(Name.Gender.Male);
-            // pgDB.FillEmployeesTable(Name.Gender.Female);
-            // pgDB.FillBuisnessPhones();
+            pgDB.FillEmployeesTable(Name.Gender.Male);
+            pgDB.FillEmployeesTable(Name.Gender.Female);
+            pgDB.FillBuisnessPhones();
             pgDB.FillWorkPhones();
+            pgDB.FillHistory();
 
             Console.ReadKey();
         }

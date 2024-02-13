@@ -127,7 +127,9 @@
     <Compile Include="FakeDataGen\MiddleNameMale.cs" />
     <Compile Include="FakeDataGen\PhoneCodes.cs" />
     <Compile Include="FakeDataGen\PhoneNumerGenerator.cs" />
+    <Compile Include="FakeDataGen\Titles.cs" />
     <Compile Include="Interfaces\IDBprocessing.cs" />
+    <Compile Include="Interfaces\IFilldtaBase.cs" />
     <Compile Include="JSON\DBConfigJSON.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -137,6 +139,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="Starter.cs" />
+    <Compile Include="UI.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -2,18 +2,25 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace SRVpart.FakeDataGen
 {
     internal class PhoneNumerGenerator
     {
-        private HashSet<string> _numbers = new HashSet<string>();
         private static PhoneNumerGenerator _instance;
+        private HashSet<string> _numbers = new HashSet<string>();
 
         private PhoneNumerGenerator()
         {
             FillHashSet();
+        }
+
+        public HashSet<string> Numbers
+        {
+            get
+            {
+                return _numbers;
+            }
         }
 
         public static PhoneNumerGenerator GetInstance()
@@ -26,14 +33,6 @@ namespace SRVpart.FakeDataGen
             else
             {
                 return _instance;
-            }
-        }
-
-        public HashSet<string> Numbers
-        {
-            get
-            {
-                return _numbers;
             }
         }
 
@@ -79,7 +78,7 @@ namespace SRVpart.FakeDataGen
                 PhoneOperators oper = 
                     (PhoneOperators)Enum.ToObject(
                         typeof(PhoneOperators),
-                        random.Next(1,3));
+                        random.Next(1, 3));
 
                 switch (oper)
                 {
