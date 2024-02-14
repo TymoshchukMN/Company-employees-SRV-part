@@ -8,6 +8,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
 using Bogus;
 using Bogus.DataSets;
 using Dapper;
@@ -681,7 +682,9 @@ namespace SRVpart.Data
         /// <returns>
         /// Резуотат выполнения операции.
         /// </returns>
-        public OperationsResults GetEmployee(out Employee employee, int personnelNumber)
+        public OperationsResults GetEmployee(
+            out Employee employee,
+            int personnelNumber)
         {
             OperationsResults operationsResults = OperationsResults.None;
             string query =
@@ -692,10 +695,12 @@ namespace SRVpart.Data
                 "emp.\"identificationCode\"," +
                 "wp.\"WorkPhone\"," +
                 "bp.\"PhoneNumber\" " +
+                "his.\"Title\"" +
                 "from \"Employees\" as emp " +
                 "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
                 "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
-                "inner join \"History\" as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
+                "inner join (SELECT * from \"History\"" +
+                "           WHERE \"PersonnelNumber\" = @PersonnelNumber AND \"EndDate\" IS NULL) as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\" " +
                 "Where emp.\"PersonnelNumber\" = @PersonnelNumber;";
 
             employee = (Employee)_connection.Query<Employee>(
@@ -744,6 +749,8 @@ namespace SRVpart.Data
                         "Select emp.\"PersonnelNumber\"," +
                         "emp.\"FirstName\"," +
                         "emp.\"MiddleName\"," +
+                        "emp.\"LastName\"," +
+                        "his.\"Title\"" +
                         "emp.\"isWorked\"," +
                         "emp.\"identificationCode\"," +
                         "wp.\"WorkPhone\"," +
@@ -751,7 +758,8 @@ namespace SRVpart.Data
                         "from \"Employees\" as emp " +
                         "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
                         "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
-                        "inner join \"History\" as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
+                        "inner join  (SELECT * from \"History\" " +
+                        "           WHERE \"PersonnelNumber\" = @PersonnelNumber AND \"EndDate\" IS NULL) as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
                         "Where bp.\"PhoneNumber\" ='@PhoneNumber';";
 
                     break;
@@ -761,6 +769,8 @@ namespace SRVpart.Data
                         "Select emp.\"PersonnelNumber\"," +
                         "emp.\"FirstName\"," +
                         "emp.\"MiddleName\"," +
+                        "emp.\"LastName\"," +
+                        "his.\"Title\"" +
                         "emp.\"isWorked\"," +
                         "emp.\"identificationCode\"," +
                         "wp.\"WorkPhone\"," +
@@ -768,7 +778,8 @@ namespace SRVpart.Data
                         "from \"Employees\" as emp " +
                         "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
                         "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
-                        "inner join \"History\" as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
+                        "inner join (SELECT * from \"History\" " +
+                        "           WHERE \"PersonnelNumber\" = @PersonnelNumber AND \"EndDate\" IS NULL) as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
                         "Where wp.\"WorkPhone\" ='@PhoneNumber';";
 
                     break;
@@ -789,6 +800,70 @@ namespace SRVpart.Data
 
             return operationsResults;
         }
+
+        /// <summary>
+        /// Получение всех работающих.
+        /// </summary>
+        /// <param name="dataTable">
+        /// Таблица с данными.</param>
+        /// <returns>Результат операции.</returns>
+        public OperationsResults GetWorkingEmployees(
+            out DataTable dataTable)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+            string query =
+                "Select emp.\"PersonnelNumber\"," +
+                "       emp.\"FirstName\"," +
+                "       emp.\"MiddleName\"," +
+                "       emp.\"LastName\"," +
+                "       emp.\"identificationCode\"," +
+                "       wp.\"WorkPhone\"," +
+                "       bp.\"PhoneNumber\", " +
+                "       his.\"Title\"" +
+                "from \"Employees\" as emp " +
+                "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
+                "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
+                "inner join (SELECT * from \"History\" " +
+                "           WHERE \"EndDate\" IS NULL) as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\" " +
+                "where emp.\"isWorked\" = B'1'";
+
+            IEnumerable<Employee> results =
+                _connection.Query<Employee>(
+                    query);
+
+            dataTable = new DataTable();
+
+            dataTable.Columns.Add("PersonnelNumber", typeof(int));
+            dataTable.Columns.Add("FirstName", typeof(string));
+            dataTable.Columns.Add("MiddleName", typeof(string));
+            dataTable.Columns.Add("LastName", typeof(string));
+            dataTable.Columns.Add("IdentificationCode", typeof(int));
+            dataTable.Columns.Add("WorkPhone", typeof(string));
+            dataTable.Columns.Add("PhoneNumber", typeof(string));
+            dataTable.Columns.Add("Title", typeof(string));
+
+            // Заполняем DataTable из IEnumerable<T>
+            foreach (var item in results)
+            {
+                dataTable.Rows.Add(
+                    item.PersonnelNumber,
+                    item.FirstName,
+                    item.MiddleName,
+                    item.LastName,
+                    item.IdentificationCode,
+                    item.WorkPhone,
+                    item.PhoneNumber,
+                    item.Title);
+            }
+
+            if (dataTable.Rows.Count > 0)
+            {
+                operationsResults = OperationsResults.Success;
+            }
+
+            return operationsResults;
+        }
+        
         #endregion IDBprocessing
 
         /// <summary>
