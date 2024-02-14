@@ -21,7 +21,7 @@ namespace SRVpart
 
         public string Title { get; set; }
 
-        public string BuisnessPhone { get; set; }
+        public string PhoneNumber { get; set; }
 
         public List<string> WorkPhone { get; set; }
 

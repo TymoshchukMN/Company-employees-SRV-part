@@ -14,5 +14,11 @@ namespace SRVpart.Enums
 
         [Description("Изменения не внесены")]
         NotChanged,
+
+        [Description("Сотрудника несуществует")]
+        DoestExist,
+
+        [Description("Данные не получены")]
+        DidtGet,
     }
 }

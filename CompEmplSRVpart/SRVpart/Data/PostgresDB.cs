@@ -410,6 +410,15 @@ namespace SRVpart.Data
 
         #region IDBprocessing
 
+        /// <summary>
+        /// Добавление сотрудника в БД.
+        /// </summary>
+        /// <param name="employee">
+        /// Сотрудник.
+        /// </param>
+        /// <returns>
+        /// Результат операции.
+        /// </returns>
         public OperationsResults CreateEmployee(Employee employee)
         {
             OperationsResults operationsResults = OperationsResults.None;
@@ -483,7 +492,7 @@ namespace SRVpart.Data
                 command.Parameters.Add(
                     "@Phone",
                     NpgsqlDbType.Varchar,
-                    VarcharSize).Value = employee.BuisnessPhone;
+                    VarcharSize).Value = employee.PhoneNumber;
 
                 if (employee.WorkPhone.Count == 1)
                 {
@@ -596,6 +605,15 @@ namespace SRVpart.Data
             return operationsResults;
         }
 
+        /// <summary>
+        /// Увольнеие сотрудника.
+        /// </summary>
+        /// <param name="employe">
+        /// Сотрудник.
+        /// </param>
+        /// <returns>
+        /// Рузультат операции.
+        /// </returns>
         public OperationsResults FireEmployee(Employee employe)
         {
             OperationsResults operationsResults = OperationsResults.None;
@@ -606,13 +624,12 @@ namespace SRVpart.Data
                 "Select count(*) from  \"Employees\" " +
                 "where \"PersonnelNumber\" = @PersonnelNumber;";
 
-            command.Parameters.Add(
-                "@PersonnelNumber",
-                NpgsqlDbType.Integer).Value = employe.PersonnelNumber;
+            int count = _connection.QueryFirstOrDefault<int>(query, new
+            {
+                PersonnelNumber = employe.PersonnelNumber,
+            });
 
-            int affectedRows = command.ExecuteNonQuery();
-
-            if (affectedRows > 0)
+            if (count > 0)
             {
                 query =
                        "UPDATE \"Employees\" " +
@@ -632,7 +649,7 @@ namespace SRVpart.Data
                 command.Parameters.Add(
                     "@PersonnelNumber",
                     NpgsqlDbType.Integer).Value = employe.PersonnelNumber;
-                affectedRows = command.ExecuteNonQuery();
+                int affectedRows = command.ExecuteNonQuery();
                 
                 if (affectedRows > 0)
                 {
@@ -645,13 +662,133 @@ namespace SRVpart.Data
             }
             else
             {
-                operationsResults = OperationsResults.NotChanged;
+                operationsResults = OperationsResults.DoestExist;
             }
 
             command.Dispose();
             return operationsResults;
         }
 
+        /// <summary>
+        /// Получить пользователя по табельному номеру.
+        /// </summary>
+        /// <param name="employee">
+        /// Класс для маппинга.
+        /// </param>
+        /// <param name="personnelNumber">
+        /// Табельный номер.
+        /// </param>
+        /// <returns>
+        /// Резуотат выполнения операции.
+        /// </returns>
+        public OperationsResults GetEmployee(out Employee employee, int personnelNumber)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+            string query =
+                "Select emp.\"PersonnelNumber\"," +
+                "emp.\"FirstName\"," +
+                "emp.\"MiddleName\"," +
+                "emp.\"isWorked\"," +
+                "emp.\"identificationCode\"," +
+                "wp.\"WorkPhone\"," +
+                "bp.\"PhoneNumber\" " +
+                "from \"Employees\" as emp " +
+                "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
+                "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
+                "inner join \"History\" as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
+                "Where emp.\"PersonnelNumber\" = @PersonnelNumber;";
+
+            employee = (Employee)_connection.Query<Employee>(
+                query,
+                new { PersonnelNumber = personnelNumber });
+
+            if (employee != null)
+            {
+                operationsResults = OperationsResults.Success;
+            }
+            else
+            {
+                operationsResults = OperationsResults.DidtGet;
+            }
+
+            return operationsResults;
+        }
+
+        /// <summary>
+        /// Получение сотрудника по номеру телефона.
+        /// </summary>
+        /// <param name="employee">
+        /// Сласс сотрудника для маппинга.
+        /// </param>
+        /// <param name="phoneTypes">
+        /// Тип телефона, рабочий/бизнес.
+        /// </param>
+        /// <param name="phoneNumber">
+        /// номер телефона.
+        /// </param>
+        /// <returns>
+        /// Резульат операции.
+        /// </returns>
+        public OperationsResults GetEmployee(
+            out Employee employee,
+            PhoneTypes phoneTypes,
+            string phoneNumber)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+            string query = string.Empty;
+            switch (phoneTypes)
+            {
+                case PhoneTypes.Buisbusiness:
+
+                    query =
+                        "Select emp.\"PersonnelNumber\"," +
+                        "emp.\"FirstName\"," +
+                        "emp.\"MiddleName\"," +
+                        "emp.\"isWorked\"," +
+                        "emp.\"identificationCode\"," +
+                        "wp.\"WorkPhone\"," +
+                        "bp.\"PhoneNumber\" " +
+                        "from \"Employees\" as emp " +
+                        "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
+                        "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
+                        "inner join \"History\" as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
+                        "Where bp.\"PhoneNumber\" ='@PhoneNumber';";
+
+                    break;
+                case PhoneTypes.Work:
+
+                    query =
+                        "Select emp.\"PersonnelNumber\"," +
+                        "emp.\"FirstName\"," +
+                        "emp.\"MiddleName\"," +
+                        "emp.\"isWorked\"," +
+                        "emp.\"identificationCode\"," +
+                        "wp.\"WorkPhone\"," +
+                        "bp.\"PhoneNumber\" " +
+                        "from \"Employees\" as emp " +
+                        "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
+                        "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
+                        "inner join \"History\" as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\"" +
+                        "Where wp.\"WorkPhone\" ='@PhoneNumber';";
+
+                    break;
+            }
+
+            employee = (Employee)_connection.Query<Employee>(
+                query,
+                new { PhoneNumber = phoneNumber });
+
+            if (employee != null)
+            {
+                operationsResults = OperationsResults.Success;
+            }
+            else
+            {
+                operationsResults = OperationsResults.DidtGet;
+            }
+
+            return operationsResults;
+        }
         #endregion IDBprocessing
 
         /// <summary>
