@@ -1,4 +1,11 @@
-﻿using System.IO;
+﻿// Author: Tymoshchuk Maksym
+// Created On : 13/02/2024
+// Last Modified On :
+// Description: Вспомогательный класс для
+//              статических методов.
+// Project: SRVpart
+
+using System.IO;
 using Newtonsoft.Json;
 using SRVpart.JSON;
 

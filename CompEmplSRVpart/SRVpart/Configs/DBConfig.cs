@@ -1,4 +1,11 @@
-﻿namespace SRVpart.Configs
+﻿// Author: Tymoshchuk Maksym
+// Created On : 13/02/2024
+// Last Modified On :
+// Description: Класс для хранениея
+//              конфигурации на подключение к БД
+// Project: SRVpart
+
+namespace SRVpart.Configs
 {
     internal class DBConfig
     {

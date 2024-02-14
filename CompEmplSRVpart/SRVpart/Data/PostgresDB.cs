@@ -1,13 +1,19 @@
-﻿using System;
+﻿// Author: Tymoshchuk Maksym
+// Created On : 13/02/2024
+// Last Modified On :
+// Description: Класс для рабоы с БД
+// Project: SRVpart
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using Bogus;
 using Bogus.DataSets;
 using Dapper;
 using Npgsql;
 using NpgsqlTypes;
+using SRVpart.Enums;
 using SRVpart.FakeDataGen;
 using SRVpart.Interfaces;
 
@@ -90,6 +96,8 @@ namespace SRVpart.Data
             _connection.Close();
         }
 
+        #region IFilldtaBase
+
         /// <summary>
         /// Заполнение таблицы сотрудников.
         /// </summary>
@@ -121,13 +129,13 @@ namespace SRVpart.Data
             #region Заполнение таблицы Employees
             
             const int CountWorkers = 50;
-
+            IdentCodeGenerator codeGenerator = IdentCodeGenerator.GetInstance();
             for (int i = 0; i < CountWorkers; i++)
             {
                 ++personnelNumber;
 
-                query = "INSERT INTO public.\"Employees\"(\"PersonnelNumber\", \"FirstName\", \"MiddleName\", \"Lastname\", \"isWorked\")" +
-                    " VALUES(@Number, @FirstName, @MiddleName, @LastName, @isWorked);";
+                query = "INSERT INTO public.\"Employees\"(\"PersonnelNumber\", \"FirstName\", \"MiddleName\", \"Lastname\", \"isWorked\", \"identificationCode\")" +
+                    " VALUES(@Number, @FirstName, @MiddleName, @LastName, @isWorked, @identificationCode);";
 
                 string fullname = faker.Name.FullName(gender);
 
@@ -156,6 +164,7 @@ namespace SRVpart.Data
                 command.Parameters.Add("@FirstName", NpgsqlDbType.Varchar).Value = firstName;
                 command.Parameters.Add("@MiddleName", NpgsqlDbType.Varchar).Value = middleName;
                 command.Parameters.Add("@LastName", NpgsqlDbType.Varchar).Value = lastName;
+                command.Parameters.Add("@identificationCode", NpgsqlDbType.Integer).Value = codeGenerator.GetCode();
                 
                 if (i % 3 == 0)
                 {
@@ -396,6 +405,254 @@ namespace SRVpart.Data
                 command.Dispose();
             }
         }
+
+        #endregion IFilldtaBase
+
+        #region IDBprocessing
+
+        public OperationsResults CreateEmployee(Employee employee)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+
+            NpgsqlCommand command = new NpgsqlCommand();
+            command.Connection = _connection;
+
+            // прверка есть ли в базе сотрудник с таким идентификационным кодом
+            string query = 
+                "Select count(*) from  \"Employees\" " +
+                "where \"identificationCode\" = @code;";
+
+            command.CommandText = query;
+            command.Parameters.Add(
+                "@code",
+                NpgsqlDbType.Integer).Value = employee.IdentificationCode;
+
+            int countWors = command.ExecuteNonQuery();
+
+            // в БД нет сотрудника с указанным ИНН. Добавляем
+            if (countWors == 0)
+            {
+                query = "select \"PersonnelNumber\" from \"Employees\";";
+                command.CommandText = query;
+                NpgsqlDataReader dr = command.ExecuteReader();
+                int affectedRows = 0;
+                int personnelNumber = 0;
+                while (dr.Read())
+                {
+                    personnelNumber = dr.GetInt32(0);
+                }
+
+                dr.Close();
+
+                query = "INSERT INTO public.\"Employees\"(" +
+                        "\"PersonnelNumber\", \"FirstName\", \"MiddleName\", \"Lastname\", \"isWorked\")" +
+                        " VALUES(@Number, @FirstName, @MiddleName, @LastName, @isWorked);" +
+
+                        "INSERT INTO public.\"BusinessPhones\"(" +
+                        "\"PersonnelNumber\", \"PhoneNumber\")" +
+                        "VALUES(@Number, @Phone); " +
+
+                        "INSERT INTO public.\"WorkPhone\"(" +
+                        "\"PersonnelNumber\", \"WorkPhone\")" +
+                        "VALUES(@Number, @WorkPhone); ";
+
+                const int VarcharSize = 15;
+                command.Parameters.Add(
+                    "@Number",
+                    NpgsqlDbType.Integer).Value = ++personnelNumber;
+
+                command.Parameters.Add(
+                    "@FirstName",
+                    NpgsqlDbType.Varchar,
+                    VarcharSize).Value = employee.FirstName;
+
+                command.Parameters.Add(
+                    "@MiddleName",
+                    NpgsqlDbType.Varchar,
+                    VarcharSize).Value = employee.MiddleName;
+
+                command.Parameters.Add(
+                    "@LastName",
+                    NpgsqlDbType.Varchar,
+                    VarcharSize).Value = employee.LastName;
+
+                command.Parameters.Add(
+                    "@isWorked",
+                    NpgsqlDbType.Bit).Value = (byte)0b1;
+
+                command.Parameters.Add(
+                    "@Phone",
+                    NpgsqlDbType.Varchar,
+                    VarcharSize).Value = employee.BuisnessPhone;
+
+                if (employee.WorkPhone.Count == 1)
+                {
+                    command.Parameters.Add(
+                        "@WorkPhone",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = employee.WorkPhone[0];
+
+                    affectedRows = command.ExecuteNonQuery();
+                }
+                else
+                {
+                    if (employee.WorkPhone.Count > 1)
+                    {
+                        affectedRows = command.ExecuteNonQuery();
+
+                        for (int i = 1; i < employee.WorkPhone.Count; i++)
+                        {
+                            query = "INSERT INTO public.\"WorkPhone\"(" +
+                               "\"PersonnelNumber\", \"WorkPhone\")" +
+                               "VALUES(@Number, @Phone); ";
+
+                            command.Parameters.Add(
+                                "@WorkPhone",
+                                NpgsqlDbType.Varchar,
+                                VarcharSize).Value = employee.WorkPhone[i];
+
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+                if (affectedRows > 0)
+                {
+                    operationsResults = OperationsResults.Success;
+                }
+
+                command.Dispose();
+            }
+            else // if (contWors == 0)
+            {
+                query =
+                    "SELECT \"isWorked\" " +
+                    "FROM \"Employees\" WHERE \"identificationCode\" = @code;";
+                command.CommandText = query;
+                command.Parameters.Add(
+                    "@code",
+                    NpgsqlDbType.Integer).Value = employee.IdentificationCode;
+
+                var reader = command.ExecuteReader();
+                bool isWork = false;
+                
+                while (reader.Read())
+                {
+                    isWork = reader.GetBoolean(0);
+                }
+
+                if (!isWork)
+                {
+                    #region ОБНОВЛЕНИЕ ДАННЫХ Сотрудка который ранее работал
+
+                    // принимаем на работу и ОБНОВЛЯЕМ ДАННЫЕ сотрудника
+                    query =
+                        "UPDATE \"Employees\" " +
+                        "SET \"isWorked\" = @isWorked " +
+                        "WHERE \"PersonnelNumber\" = @PersonnelNumber;";
+                    command.CommandText = query;
+                    command.Parameters.Add("@isWorked", NpgsqlDbType.Boolean).Value = true;
+
+                    command.ExecuteNonQuery();
+
+                    const int VarcharSize = 15;
+                    query =
+                        "INSERT INTO \"History\"(\"PersonnelNumber\", \"Title\", \"StartDate\", \"EndDate\") " +
+                        "VALUES(@PersonnelNumber, @Title, @StartDate);";
+
+                    command.CommandText = query;
+                    command.Parameters.Add(
+                        "@Number",
+                        NpgsqlDbType.Integer).Value = employee.PersonnelNumber;
+
+                    command.Parameters.Add(
+                        "@Title",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = employee.Title;
+
+                    command.Parameters.Add(
+                        "@StartDate",
+                        NpgsqlDbType.Date).Value = employee.EmploymentDate;
+
+                    int affectedRows = command.ExecuteNonQuery();
+
+                    if (affectedRows > 0)
+                    {
+                        operationsResults = OperationsResults.Success;
+                    }
+
+                    #endregion ОБНОВЛЕНИЕ ДАННЫХ Сотрудка который ранее работал
+                }
+                else
+                {
+                    operationsResults = OperationsResults.AlreadyWorking;
+
+                    Console.WriteLine("Уже работет");
+                }
+
+                return operationsResults;
+            }
+
+            return operationsResults;
+        }
+
+        public OperationsResults FireEmployee(Employee employe)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+
+            NpgsqlCommand command = new NpgsqlCommand();
+
+            string query =
+                "Select count(*) from  \"Employees\" " +
+                "where \"PersonnelNumber\" = @PersonnelNumber;";
+
+            command.Parameters.Add(
+                "@PersonnelNumber",
+                NpgsqlDbType.Integer).Value = employe.PersonnelNumber;
+
+            int affectedRows = command.ExecuteNonQuery();
+
+            if (affectedRows > 0)
+            {
+                query =
+                       "UPDATE \"Employees\" " +
+                       "SET \"isWorked\" = @isWorked " +
+                       "WHERE \"PersonnelNumber\" = @PersonnelNumber;";
+                command.CommandText = query;
+                command.Parameters.Add("@isWorked", NpgsqlDbType.Boolean).Value = false;
+
+                command.ExecuteNonQuery();
+
+                query =
+                    "UPDATE \"History\" " +
+                    "SET \"EndDate\" =? " +
+                    "WHERE \"EndDate\" is NULL AND \"PersonnelNumber\" = @PersonnelNumber;";
+
+                command.CommandText = query;
+                command.Parameters.Add(
+                    "@PersonnelNumber",
+                    NpgsqlDbType.Integer).Value = employe.PersonnelNumber;
+                affectedRows = command.ExecuteNonQuery();
+                
+                if (affectedRows > 0)
+                {
+                    operationsResults = OperationsResults.Success;
+                }
+                else
+                {
+                    operationsResults = OperationsResults.NotChanged;
+                }
+            }
+            else
+            {
+                operationsResults = OperationsResults.NotChanged;
+            }
+
+            command.Dispose();
+            return operationsResults;
+        }
+
+        #endregion IDBprocessing
 
         /// <summary>
         /// Получени ерандомной должности.

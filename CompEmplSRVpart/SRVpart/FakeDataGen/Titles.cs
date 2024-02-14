@@ -1,4 +1,12 @@
-﻿using System.ComponentModel;
+﻿// Author: Tymoshchuk Maksym
+// Created On : 13/02/2024
+// Last Modified On :
+// Description: Пречисления должностей
+//              для наполнения
+//              БД фейковыми значениями
+// Project: SRVpart
+
+using System.ComponentModel;
 
 namespace SRVpart.FakeDataGen
 {

@@ -6,7 +6,7 @@ namespace SRVpart
     {
         private static void Main(string[] args)
         {
-            BogusFaker.Run();
+            // BogusFaker.Run(); // -наполнение БД фейковыми данными
             Starter.Run();
         }
     }
