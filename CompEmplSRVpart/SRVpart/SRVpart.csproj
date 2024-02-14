@@ -124,6 +124,7 @@
     <Compile Include="Data\PostgresDB.cs" />
     <Compile Include="Employee.cs" />
     <Compile Include="Enums\OperationsResults.cs" />
+    <Compile Include="Enums\PhoneTypes.cs" />
     <Compile Include="FakeDataGen\BogusFaker.cs" />
     <Compile Include="FakeDataGen\IdentCodeGenerator.cs" />
     <Compile Include="FakeDataGen\MiddleNameFemale.cs" />

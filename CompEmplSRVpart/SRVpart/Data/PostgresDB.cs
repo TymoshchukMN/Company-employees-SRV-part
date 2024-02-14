@@ -863,7 +863,115 @@ namespace SRVpart.Data
 
             return operationsResults;
         }
-        
+
+        /// <summary>
+        /// Получить список сотрудиков, принятых до или после указанной даты.
+        /// </summary>
+        /// <param name="dataTable">Таблиа для вывода результата.</param>
+        /// <param name="date">Дата для фильтра.</param>
+        /// <param name="creteria">Переметр поиска. 
+        /// Больше или меньше указанной даты.</param>
+        /// <returns>Результат операции.</returns>
+        public OperationsResults GetEmployeeWorkingFromDate(
+            out DataTable dataTable,
+            DateTime date,
+            SearchCreteria creteria)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+            string query = string.Empty;
+            switch (creteria)
+            {
+                case SearchCreteria.Less:
+                    query =
+                        "Select emp.\"PersonnelNumber\"," +
+                        "       emp.\"FirstName\"," +
+                        "       emp.\"MiddleName\"," +
+                        "       emp.\"LastName\"," +
+                        "       wp.\"WorkPhone\"," +
+                        "       bp.\"PhoneNumber\"," +
+                        "       his.\"Title\"," +
+                        "       his.\"StartDate\" " +
+                        "from \"Employees\" as emp " +
+                        "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
+                        "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
+                        "inner join(SELECT* from \"History\" " +
+                        "           WHERE \"EndDate\" IS NULL and \"StartDate\" < '@startDate') as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\" " +
+                        "where emp.\"isWorked\" = B'1'";
+                    break;
+                case SearchCreteria.More:
+                    query =
+                        "Select emp.\"PersonnelNumber\"," +
+                        "       emp.\"FirstName\"," +
+                        "       emp.\"MiddleName\"," +
+                        "       emp.\"LastName\"," +
+                        "       wp.\"WorkPhone\"," +
+                        "       bp.\"PhoneNumber\"," +
+                        "       his.\"Title\"," +
+                        "       his.\"StartDate\" " +
+                        "from \"Employees\" as emp " +
+                        "inner join \"BusinessPhones\" as bp on emp.\"PersonnelNumber\" = bp.\"PersonnelNumber\" " +
+                        "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
+                        "inner join(SELECT* from \"History\" " +
+                        "           WHERE \"EndDate\" IS NULL and \"StartDate\" > '@startDate') as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\" " +
+                        "where emp.\"isWorked\" = B'1'";
+                    break;
+            }
+            
+            IEnumerable<Employee> results =
+                _connection.Query<Employee>(
+                    query, new { startDate = date });
+
+            dataTable = new DataTable();
+
+            dataTable.Columns.Add("PersonnelNumber", typeof(int));
+            dataTable.Columns.Add("FirstName", typeof(string));
+            dataTable.Columns.Add("MiddleName", typeof(string));
+            dataTable.Columns.Add("LastName", typeof(string));
+            dataTable.Columns.Add("IdentificationCode", typeof(int));
+            dataTable.Columns.Add("WorkPhone", typeof(string));
+            dataTable.Columns.Add("PhoneNumber", typeof(string));
+            dataTable.Columns.Add("Title", typeof(string));
+
+            // Заполняем DataTable из IEnumerable<T>
+            foreach (var item in results)
+            {
+                dataTable.Rows.Add(
+                    item.PersonnelNumber,
+                    item.FirstName,
+                    item.MiddleName,
+                    item.LastName,
+                    item.IdentificationCode,
+                    item.WorkPhone,
+                    item.PhoneNumber,
+                    item.Title);
+            }
+
+            if (dataTable.Rows.Count > 0)
+            {
+                operationsResults = OperationsResults.Success;
+            }
+
+            return operationsResults;
+        }
+
+        public OperationsResults ChangeData(Employee employee, ChangeTypes changeTypes)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+            switch (changeTypes)
+            {
+                case ChangeTypes.LastName:
+                    break;
+                case ChangeTypes.Title:
+                    break;
+                case ChangeTypes.PhoneNumber:
+                    break;
+                case ChangeTypes.WorkPhone:
+                    break;
+            }
+
+            return operationsResults;
+        }
+
         #endregion IDBprocessing
 
         /// <summary>
