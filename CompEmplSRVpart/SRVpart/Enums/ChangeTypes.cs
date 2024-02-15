@@ -12,6 +12,12 @@ namespace SRVpart.Enums
 {
     internal enum ChangeTypes
     {
+        [Description("Изменение имени")]
+        FirstName,
+
+        [Description("Изменение отчества")]
+        MiddleName,
+
         [Description("Изменение фамилии")]
         LastName,
 

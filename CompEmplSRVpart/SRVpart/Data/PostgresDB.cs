@@ -437,10 +437,10 @@ namespace SRVpart.Data
                 "@code",
                 NpgsqlDbType.Integer).Value = employee.IdentificationCode;
 
-            int countWors = command.ExecuteNonQuery();
+            int workersCount = command.ExecuteNonQuery();
 
             // в БД нет сотрудника с указанным ИНН. Добавляем
-            if (countWors == 0)
+            if (workersCount == 0)
             {
                 query = "select \"PersonnelNumber\" from \"Employees\";";
                 command.CommandText = query;
@@ -533,7 +533,7 @@ namespace SRVpart.Data
 
                 command.Dispose();
             }
-            else // if (contWors == 0)
+            else // if (workersCount == 0)
             {
                 query =
                     "SELECT \"isWorked\" " +
@@ -869,16 +869,20 @@ namespace SRVpart.Data
         /// </summary>
         /// <param name="dataTable">Таблиа для вывода результата.</param>
         /// <param name="date">Дата для фильтра.</param>
-        /// <param name="creteria">Переметр поиска. 
-        /// Больше или меньше указанной даты.</param>
+        /// <param name="creteria">Переметр поиска. </param>
+        /// <param name="isFired">Уволен/работатает. </param>
         /// <returns>Результат операции.</returns>
-        public OperationsResults GetEmployeeWorkingFromDate(
+        public OperationsResults GetEmployeesByDate(
             out DataTable dataTable,
             DateTime date,
-            SearchCreteria creteria)
+            SearchCreteria creteria,
+            IsFired isFired)
         {
             OperationsResults operationsResults = OperationsResults.None;
             string query = string.Empty;
+            NpgsqlCommand command = new NpgsqlCommand();
+            command.Connection = _connection;
+
             switch (creteria)
             {
                 case SearchCreteria.Less:
@@ -896,7 +900,23 @@ namespace SRVpart.Data
                         "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
                         "inner join(SELECT* from \"History\" " +
                         "           WHERE \"EndDate\" IS NULL and \"StartDate\" < '@startDate') as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\" " +
-                        "where emp.\"isWorked\" = B'1'";
+                        "where emp.\"isWorked\" = @isWorked";
+
+                    command.CommandText = query;
+                    command.Parameters.Add("@startDate", NpgsqlDbType.Date).Value = date;
+
+                    switch (isFired)
+                    {
+                        case IsFired.Works:
+                            command.Parameters.Add("@isWorked", NpgsqlDbType.Boolean).Value = true;
+
+                            break;
+                        case IsFired.Fired:
+                            command.Parameters.Add("@isWorked", NpgsqlDbType.Boolean).Value = false;
+
+                            break;
+                    }
+
                     break;
                 case SearchCreteria.More:
                     query =
@@ -913,7 +933,23 @@ namespace SRVpart.Data
                         "inner join \"WorkPhone\" as wp on emp.\"PersonnelNumber\" = wp.\"PersonnelNumber\" " +
                         "inner join(SELECT* from \"History\" " +
                         "           WHERE \"EndDate\" IS NULL and \"StartDate\" > '@startDate') as his on emp.\"PersonnelNumber\" = his.\"PersonnelNumber\" " +
-                        "where emp.\"isWorked\" = B'1'";
+                        "where emp.\"isWorked\" = @isWorked";
+
+                    command.CommandText = query;
+                    command.Parameters.Add("@startDate", NpgsqlDbType.Date).Value = date;
+
+                    switch (isFired)
+                    {
+                        case IsFired.Works:
+                            command.Parameters.Add("@isWorked", NpgsqlDbType.Boolean).Value = true;
+
+                            break;
+                        case IsFired.Fired:
+                            command.Parameters.Add("@isWorked", NpgsqlDbType.Boolean).Value = false;
+
+                            break;
+                    }
+
                     break;
             }
             
@@ -954,24 +990,211 @@ namespace SRVpart.Data
             return operationsResults;
         }
 
-        public OperationsResults ChangeData(Employee employee, ChangeTypes changeTypes)
+        /// <summary>
+        /// Изменение данных сотруника.
+        /// </summary>
+        /// <param name="employee">Сотрудник.</param>
+        /// <param name="changeTypes">Что нужно поменнять.</param>
+        /// <param name="newVol">Новое значение.</param>
+        /// <returns>Результат.</returns>
+        public OperationsResults ChangeData(
+            Employee employee,
+            ChangeTypes changeTypes,
+            string newVol)
         {
             OperationsResults operationsResults = OperationsResults.None;
+            NpgsqlCommand command = new NpgsqlCommand();
+            command.Connection = _connection;
+
+            string query = string.Empty;
+            const int VarcharSize = 15;
             switch (changeTypes)
             {
+                case ChangeTypes.FirstName:
+                    query = "UPDATE public.\"Employees\" " +
+                            "SET  \"FirstName\" =@FirstName " +
+                            "WHERE \"PersonnelNumber\"= @PersonnelNumber; ";
+
+                    command.CommandText = query;
+                    command.Parameters.Add(
+                        "@FirstName",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = newVol;
+
+                    command.Parameters.Add(
+                        "@PersonnelNumber",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = employee.PersonnelNumber;
+
+                    ExecuteAndGetResult(out operationsResults, command);
+
+                    command.Dispose();
+
+                    break;
+                case ChangeTypes.MiddleName:
+                    query = "UPDATE public.\"Employees\" " +
+                            "SET  \"MiddleName\" =@MiddleName " +
+                            "WHERE \"PersonnelNumber\"= @PersonnelNumber; ";
+
+                    command.CommandText = query;
+                    command.Parameters.Add(
+                        "@MiddleName",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = newVol;
+
+                    command.Parameters.Add(
+                        "@PersonnelNumber",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = employee.PersonnelNumber;
+
+                    ExecuteAndGetResult(out operationsResults, command);
+
+                    command.Dispose();
+                    break;
+
                 case ChangeTypes.LastName:
+
+                    query = "UPDATE public.\"Employees\" " +
+                            "SET  \"LastName\" =@LastName " +
+                            "WHERE \"PersonnelNumber\"= @PersonnelNumber; ";
+
+                    command.CommandText = query;
+                    command.Parameters.Add(
+                        "@LastName",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = newVol;
+
+                    command.Parameters.Add(
+                        "@PersonnelNumber",
+                        NpgsqlDbType.Varchar,
+                        VarcharSize).Value = employee.PersonnelNumber;
+
+                    ExecuteAndGetResult(out operationsResults, command);
+
+                    command.Dispose();
+
+                    break;
+               
+                case ChangeTypes.PhoneNumber:
+
+                    query = "UPDATE public.\"BusinessPhones\" " +
+                            "SET \"PhoneNumber\" =@newNumber " +
+                            "WHERE \"PersonnelNumber\" = @PersonnelNumber; ";
+
+                    command.CommandText = query;
+                    command.Parameters.Add(
+                       "@PersonnelNumber",
+                       NpgsqlDbType.Varchar,
+                       VarcharSize).Value = employee.PersonnelNumber;
+                    command.Parameters.Add(
+                       "@newNumber",
+                       NpgsqlDbType.Varchar,
+                       VarcharSize).Value = newVol;
+
+                    ExecuteAndGetResult(out operationsResults, command);
+
                     break;
                 case ChangeTypes.Title:
-                    break;
-                case ChangeTypes.PhoneNumber:
-                    break;
-                case ChangeTypes.WorkPhone:
+                    query = "UPDATE public.\"History\" " +
+                            "SET \"Title\" = @newTitle " +
+                            "WHERE \"EndDate\" is null and \"PersonnelNumber\" = @PersonnelNumber; ";
+
+                    command.CommandText = query;
+
+                    command.Parameters.Add(
+                       "@newTitle",
+                       NpgsqlDbType.Varchar,
+                       VarcharSize).Value = newVol;
+
+                    command.Parameters.Add(
+                       "@PersonnelNumber",
+                       NpgsqlDbType.Varchar,
+                       VarcharSize).Value = employee.PersonnelNumber;
+
+                    ExecuteAndGetResult(out operationsResults, command);
+
                     break;
             }
 
             return operationsResults;
         }
 
+        /// <summary>
+        /// Изменение рабочего номера сотрудника.
+        /// </summary>
+        /// <param name="employee">Сотрудник.</param>
+        /// <param name="phoneToChange">Номер для редактирования.</param>
+        /// <param name="newVol">Новый номер.</param>
+        /// <returns>Результат операции.</returns>
+        public OperationsResults ChangeData(
+            Employee employee,
+            string phoneToChange,
+            string newVol)
+        {
+            OperationsResults operationsResults = OperationsResults.None;
+            NpgsqlCommand command = new NpgsqlCommand();
+            command.Connection = _connection;
+
+            string query = string.Empty;
+            const int VarcharSize = 15;
+
+            query = "UPDATE public.\"WorkPhone\" " +
+                    "SET \"WorkPhone\" =@newNumber " +
+                    "WHERE \"PersonnelNumber\" = @PersonnelNumber " +
+                    "AND \"WorkPhone\" = @phoneToChange; ";
+
+            command.CommandText = query;
+
+            command.Parameters.Add(
+               "@PersonnelNumber",
+               NpgsqlDbType.Varchar,
+               VarcharSize).Value = employee.PersonnelNumber;
+
+            command.Parameters.Add(
+               "@phoneToChange",
+               NpgsqlDbType.Varchar,
+               VarcharSize).Value = phoneToChange;
+
+            command.Parameters.Add(
+               "@newNumber",
+               NpgsqlDbType.Varchar,
+               VarcharSize).Value = newVol;
+
+            int affectedRows = command.ExecuteNonQuery();
+
+            if (affectedRows > 0)
+            {
+                operationsResults = OperationsResults.Success;
+            }
+            else
+            {
+                operationsResults = OperationsResults.NotChanged;
+            }
+
+            return operationsResults;
+        }
+
+        /// <summary>
+        /// Выполнить запрос и вернуть результат в виде енама.
+        /// </summary>
+        /// <param name="operationsResults">Енам для хранения результата операции.</param>
+        /// <param name="command">Объект NpgsqlCommand.</param>
+        private static void ExecuteAndGetResult(
+            out OperationsResults operationsResults,
+            NpgsqlCommand command)
+        {
+            int affectedRows = command.ExecuteNonQuery();
+
+            if (affectedRows > 0)
+            {
+                operationsResults = OperationsResults.Success;
+            }
+            else
+            {
+                operationsResults = OperationsResults.NotChanged;
+            }
+        }
+        
         #endregion IDBprocessing
 
         /// <summary>

@@ -12,7 +12,7 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <NoWarn>SA1633;SA0001;SA1309;SA1101;SA1600;SA1200;SA1601;SA1124;SA1123;SA1028;SA1602</NoWarn>
+    <NoWarn>SA1633;SA0001;SA1309;SA1101;SA1600;SA1200;SA1601;SA1124;SA1123;SA1028;SA1602;SA1108</NoWarn>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -123,7 +123,10 @@
     <Compile Include="Configs\SrvConfig.cs" />
     <Compile Include="Data\PostgresDB.cs" />
     <Compile Include="Employee.cs" />
+    <Compile Include="Enums\ChangeTypes.cs" />
+    <Compile Include="Enums\IsFired.cs" />
     <Compile Include="Enums\OperationsResults.cs" />
+    <Compile Include="Enums\OrderType.cs" />
     <Compile Include="Enums\PhoneTypes.cs" />
     <Compile Include="FakeDataGen\BogusFaker.cs" />
     <Compile Include="FakeDataGen\IdentCodeGenerator.cs" />
